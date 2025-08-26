@@ -16,16 +16,23 @@ const origin =
   process.env.APPWRITE_FUNCTION_API_ENDPOINT?.split('/v1')[0] ||
   `https://${rpID}`;
 
-// CORS headers for all responses
-const corsHeaders = {
-  'Access-Control-Allow-Origin': 'https://www.whisperrnote.space',
+// CORS configuration
+const allowedOrigins = [
+  'https://www.whisperrnote.space',
+  'https://whisperrnote.space',
+  'https://9000-firebase-whisperrnote-1753547106435.cluster-fbfjltn375c6wqxlhoehbz44sk.cloudworkstations.dev'
+];
+
+const getCorsHeaders = (requestOrigin) => ({
+  'Access-Control-Allow-Origin': allowedOrigins.includes(requestOrigin) ? requestOrigin : allowedOrigins[0],
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Appwrite-Project',
   'Access-Control-Allow-Credentials': 'true'
-};
+});
 
 export default async ({ req, res, log, error }) => {
   const appwrite = new AppwriteService();
+  const corsHeaders = getCorsHeaders(req.headers.origin);
 
   try {
     // Handle CORS preflight requests
@@ -44,20 +51,40 @@ export default async ({ req, res, log, error }) => {
       return res.text('Pong', 200, corsHeaders);
     }
 
+    // New unified endpoint for function executions
+    if (req.method === 'POST' && req.path === '/') {
+      const body = JSON.parse(req.body || '{}');
+      const { action } = body;
+
+      switch (action) {
+        case 'register-start':
+          return await handleRegistrationStart(req, res, appwrite, log, error, corsHeaders, body);
+        case 'register-finish':
+          return await handleRegistrationFinish(req, res, appwrite, log, error, corsHeaders, body);
+        case 'auth-start':
+          return await handleAuthenticationStart(req, res, appwrite, log, error, corsHeaders, body);
+        case 'auth-finish':
+          return await handleAuthenticationFinish(req, res, appwrite, log, error, corsHeaders, body);
+        default:
+          return res.json({ error: 'Invalid action' }, 400, corsHeaders);
+      }
+    }
+
+    // Legacy HTTP endpoints (keep for backward compatibility)
     if (req.method === 'POST' && req.path === '/v1/challenges') {
-      return await handleRegistrationStart(req, res, appwrite, log, error);
+      return await handleRegistrationStart(req, res, appwrite, log, error, corsHeaders);
     }
 
     if (req.method === 'PUT' && req.path === '/v1/challenges') {
-      return await handleRegistrationFinish(req, res, appwrite, log, error);
+      return await handleRegistrationFinish(req, res, appwrite, log, error, corsHeaders);
     }
 
     if (req.method === 'POST' && req.path === '/v1/tokens') {
-      return await handleAuthenticationStart(req, res, appwrite, log, error);
+      return await handleAuthenticationStart(req, res, appwrite, log, error, corsHeaders);
     }
 
     if (req.method === 'PUT' && req.path === '/v1/tokens') {
-      return await handleAuthenticationFinish(req, res, appwrite, log, error);
+      return await handleAuthenticationFinish(req, res, appwrite, log, error, corsHeaders);
     }
 
     return res.json({ error: 'Endpoint not found' }, 404, corsHeaders);
@@ -67,9 +94,9 @@ export default async ({ req, res, log, error }) => {
   }
 };
 
-async function handleRegistrationStart(req, res, appwrite, _, error) {
+async function handleRegistrationStart(req, res, appwrite, _, error, corsHeaders, bodyData = null) {
   try {
-    const body = JSON.parse(req.body || '{}');
+    const body = bodyData || JSON.parse(req.body || '{}');
     throwIfMissing(body, ['email']);
 
     const user = await appwrite.prepareUser(body.email);
@@ -103,9 +130,9 @@ async function handleRegistrationStart(req, res, appwrite, _, error) {
   }
 }
 
-async function handleRegistrationFinish(req, res, appwrite, _, error) {
+async function handleRegistrationFinish(req, res, appwrite, _, error, corsHeaders, bodyData = null) {
   try {
-    const body = JSON.parse(req.body || '{}');
+    const body = bodyData || JSON.parse(req.body || '{}');
     throwIfMissing(body, ['challengeId', 'registration']);
 
     const challenge = await appwrite.getChallenge(body.challengeId);
@@ -136,9 +163,9 @@ async function handleRegistrationFinish(req, res, appwrite, _, error) {
   }
 }
 
-async function handleAuthenticationStart(req, res, appwrite, _, error) {
+async function handleAuthenticationStart(req, res, appwrite, _, error, corsHeaders, bodyData = null) {
   try {
-    const body = JSON.parse(req.body || '{}');
+    const body = bodyData || JSON.parse(req.body || '{}');
     throwIfMissing(body, ['email']);
 
     const user = await appwrite.prepareUser(body.email);
@@ -177,9 +204,9 @@ async function handleAuthenticationStart(req, res, appwrite, _, error) {
   }
 }
 
-async function handleAuthenticationFinish(req, res, appwrite, _, error) {
+async function handleAuthenticationFinish(req, res, appwrite, _, error, corsHeaders, bodyData = null) {
   try {
-    const body = JSON.parse(req.body || '{}');
+    const body = bodyData || JSON.parse(req.body || '{}');
     throwIfMissing(body, ['challengeId', 'authentication']);
 
     const challenge = await appwrite.getChallenge(body.challengeId);
