@@ -8,6 +8,7 @@
     "format": "prettier --write ."
   },
   "dependencies": {
+    "@simplewebauthn/server": "^13.1.2",
     "node-appwrite": "^14.1.0"
   },
   "devDependencies": {
