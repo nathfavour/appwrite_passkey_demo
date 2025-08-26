@@ -71,6 +71,22 @@ export default async ({ req, res, log, error }) => {
     }
 
     // Legacy HTTP endpoints (keep for backward compatibility)
+    if (req.method === 'POST' && req.path === '/register/begin') {
+      return await handleRegistrationStart(req, res, appwrite, log, error, corsHeaders);
+    }
+
+    if (req.method === 'POST' && req.path === '/register/complete') {
+      return await handleRegistrationFinish(req, res, appwrite, log, error, corsHeaders);
+    }
+
+    if (req.method === 'POST' && req.path === '/authenticate/begin') {
+      return await handleAuthenticationStart(req, res, appwrite, log, error, corsHeaders);
+    }
+
+    if (req.method === 'POST' && req.path === '/authenticate/complete') {
+      return await handleAuthenticationFinish(req, res, appwrite, log, error, corsHeaders);
+    }
+
     if (req.method === 'POST' && req.path === '/v1/challenges') {
       return await handleRegistrationStart(req, res, appwrite, log, error, corsHeaders);
     }
@@ -87,7 +103,16 @@ export default async ({ req, res, log, error }) => {
       return await handleAuthenticationFinish(req, res, appwrite, log, error, corsHeaders);
     }
 
-    return res.json({ error: 'Endpoint not found' }, 404, corsHeaders);
+    return res.json({ 
+      error: 'Endpoint not found',
+      availableEndpoints: [
+        'POST /register/begin',
+        'POST /register/complete', 
+        'POST /authenticate/begin',
+        'POST /authenticate/complete',
+        'GET /ping'
+      ]
+    }, 404, corsHeaders);
   } catch (err) {
     error('Unexpected error: ' + err.message);
     return res.json({ error: 'Internal server error' }, 500, corsHeaders);
