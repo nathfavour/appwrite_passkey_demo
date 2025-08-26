@@ -16,18 +16,32 @@ const origin =
   process.env.APPWRITE_FUNCTION_API_ENDPOINT?.split('/v1')[0] ||
   `https://${rpID}`;
 
+// CORS headers for all responses
+const corsHeaders = {
+  'Access-Control-Allow-Origin': 'https://www.whisperrnote.space',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Appwrite-Project',
+  'Access-Control-Allow-Credentials': 'true'
+};
+
 export default async ({ req, res, log, error }) => {
   const appwrite = new AppwriteService();
 
   try {
+    // Handle CORS preflight requests
+    if (req.method === 'OPTIONS') {
+      return res.json({}, 200, corsHeaders);
+    }
+
     if (req.method === 'GET' && req.path === '/') {
       return res.text(getStaticFile('index.html'), 200, {
         'Content-Type': 'text/html',
+        ...corsHeaders
       });
     }
 
     if (req.path === '/ping') {
-      return res.text('Pong');
+      return res.text('Pong', 200, corsHeaders);
     }
 
     if (req.method === 'POST' && req.path === '/v1/challenges') {
@@ -46,10 +60,10 @@ export default async ({ req, res, log, error }) => {
       return await handleAuthenticationFinish(req, res, appwrite, log, error);
     }
 
-    return res.json({ error: 'Endpoint not found' }, 404);
+    return res.json({ error: 'Endpoint not found' }, 404, corsHeaders);
   } catch (err) {
     error('Unexpected error: ' + err.message);
-    return res.json({ error: 'Internal server error' }, 500);
+    return res.json({ error: 'Internal server error' }, 500, corsHeaders);
   }
 };
 
@@ -82,10 +96,10 @@ async function handleRegistrationStart(req, res, appwrite, _, error) {
     return res.json({
       options,
       challengeId: challenge.$id,
-    });
+    }, 200, corsHeaders);
   } catch (err) {
     error('Registration start error: ' + err.message);
-    return res.json({ error: err.message }, 400);
+    return res.json({ error: err.message }, 400, corsHeaders);
   }
 }
 
@@ -115,10 +129,10 @@ async function handleRegistrationFinish(req, res, appwrite, _, error) {
 
     await appwrite.deleteChallenge(body.challengeId);
 
-    return res.json({ success: true });
+    return res.json({ success: true }, 200, corsHeaders);
   } catch (err) {
     error('Registration finish error: ' + err.message);
-    return res.json({ error: err.message }, 400);
+    return res.json({ error: err.message }, 400, corsHeaders);
   }
 }
 
@@ -156,10 +170,10 @@ async function handleAuthenticationStart(req, res, appwrite, _, error) {
     return res.json({
       options,
       challengeId: challenge.$id,
-    });
+    }, 200, corsHeaders);
   } catch (err) {
     error('Authentication start error: ' + err.message);
-    return res.json({ error: err.message }, 400);
+    return res.json({ error: err.message }, 400, corsHeaders);
   }
 }
 
@@ -199,9 +213,9 @@ async function handleAuthenticationFinish(req, res, appwrite, _, error) {
     return res.json({
       userId: challenge.userId,
       secret: sessionToken.secret,
-    });
+    }, 200, corsHeaders);
   } catch (err) {
     error('Authentication finish error: ' + err.message);
-    return res.json({ error: err.message }, 400);
+    return res.json({ error: err.message }, 400, corsHeaders);
   }
 }
